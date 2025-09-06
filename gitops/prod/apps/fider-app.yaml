@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: fider
+  name: fider-app
   namespace: argocd
 spec:
   project: default
