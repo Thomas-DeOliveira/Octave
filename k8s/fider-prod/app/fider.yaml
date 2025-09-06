@@ -82,27 +82,23 @@ spec:
           env:
             - name: JWT_SECRET
               valueFrom: { secretKeyRef: { name: fider-secrets, key: JWT_SECRET } }
-            - name: EMAIL_SMTP_USERNAME
+            - name: EMAIL_HOST_USER
               valueFrom: { secretKeyRef: { name: fider-secrets, key: EMAIL_SMTP_USERNAME } }
-            - name: EMAIL_SMTP_PASSWORD
+            - name: EMAIL_HOST_PASSWORD
               valueFrom: { secretKeyRef: { name: fider-secrets, key: EMAIL_SMTP_PASSWORD } }
             - name: DATABASE_URL
               value: "postgres://OctavePostgresUser1234:AFBBdjfjhghfh1277432!@postgres:5432/fiderdb?sslmode=disable"
             - name: BASE_URL
               value: "https://feedback.keyos.fr"
-            - name: EMAIL_NOREPLY
-              value: "noreply@keyos.fr"
-            - name: EMAIL_SMTP_HOST
+            - name: EMAIL_DEFAULT_FROM
+              value: "totodebopro@gmail.com"
+            - name: EMAIL_HOST
               value: "smtp.gmail.com"
-            - name: EMAIL_SMTP_PORT
+            - name: EMAIL_PORT
               value: "587"
-            - name: EMAIL_SMTP_ENABLE_STARTTLS
-              value: "true"
             - name: EMAIL_BACKEND
               value: "smtp"
             - name: EMAIL_USE_TLS
-              value: "True"
-            - name: EMAIL_USE_SSL
               value: "True"
           ports:
             - containerPort: 3000
