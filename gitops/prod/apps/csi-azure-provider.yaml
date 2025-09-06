@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: csi-azure-provider
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  source:
+    repoURL: https://azure.github.io/secrets-store-csi-driver-provider-azure/charts
+    chart: csi-secrets-store-provider-azure
+    targetRevision: 1.*            # epingle la version
+    helm:
+      releaseName: csi-azure-provider
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,0 +1,117 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fider-prod
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fider-sa
+  namespace: fider-prod
+  annotations:
+    azure.workload.identity/client-id: "9b138bb9-7f52-4a0b-bef0-7786d4f9ef6b"
+---
+# 🔑 SecretProviderClass dans le même namespace, avec création du Secret K8s
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: azure-kv-fider
+  namespace: fider-prod
+spec:
+  provider: azure
+  parameters:
+    tenantId: "c87cdf06-bc04-4c92-9a1e-7e1cab14c979"     # <-- ton tenant
+    keyvaultName: "keyvault-fider"                        # <-- ton Key Vault
+    clientID: "9b138bb9-7f52-4a0b-bef0-7786d4f9ef6b"      # <-- App Registration (client ID)
+    objects: |
+      array:
+        - |
+          objectName: fider-database-url
+          objectType: secret
+        - |
+          objectName: fider-jwt-secret
+          objectType: secret
+        - |
+          objectName: fider-smtp-username
+          objectType: secret
+        - |
+          objectName: fider-smtp-password
+          objectType: secret
+  secretObjects:
+    - secretName: fider-secrets
+      type: Opaque
+      data:
+        - key: DATABASE_URL
+          objectName: fider-database-url
+        - key: JWT_SECRET
+          objectName: fider-jwt-secret
+        - key: EMAIL_SMTP_USERNAME
+          objectName: fider-smtp-username
+        - key: EMAIL_SMTP_PASSWORD
+          objectName: fider-smtp-password
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fider-app
+  namespace: fider-prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fider-app
+  template:
+    metadata:
+      labels:
+        app: fider-app
+    spec:
+      serviceAccountName: fider-sa
+      volumes:
+        - name: kv
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "azure-kv-fider"
+      containers:
+        - name: fider
+          image: getfider/fider:stable
+          # ⬇️ monte le volume CSI pour déclencher la sync KV → Secret
+          volumeMounts:
+            - name: kv
+              mountPath: /mnt/secrets-store
+              readOnly: true
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: fider-secrets, key: DATABASE_URL } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: fider-secrets, key: JWT_SECRET } }
+            - name: EMAIL_SMTP_USERNAME
+              valueFrom: { secretKeyRef: { name: fider-secrets, key: EMAIL_SMTP_USERNAME } }
+            - name: EMAIL_SMTP_PASSWORD
+              valueFrom: { secretKeyRef: { name: fider-secrets, key: EMAIL_SMTP_PASSWORD } }
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet: { path: /health, port: 3000 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 3000 }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fider-app
+  namespace: fider-prod
+spec:
+  selector:
+    app: fider-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+  type: ClusterIP

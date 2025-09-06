@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fider
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fider-prod
+  source:
+    repoURL: https://github.com/Thomas-DeOliveira/Octave.git   # CHANGE_ME
+    targetRevision: main
+    path: k8s/fider-prod                                # dossier avec fider.yaml + spc.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
