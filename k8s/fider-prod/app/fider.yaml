@@ -93,11 +93,13 @@ spec:
             - name: EMAIL_NOREPLY
               value: "noreply@keyos.fr"
             - name: EMAIL_SMTP_HOST
-              value: "smtp.mondomaine.com"
+              value: "smtp.gmail.com"
             - name: EMAIL_SMTP_PORT
               value: "587"
             - name: EMAIL_SMTP_ENABLE_STARTTLS
               value: "true"
+            - name: EMAIL_BACKEND
+              value: "smtp"
           ports:
             - containerPort: 3000
           readinessProbe:
