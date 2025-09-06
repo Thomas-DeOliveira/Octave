@@ -92,6 +92,8 @@ spec:
               value: "https://feedback.keyos.fr"
             - name: EMAIL_DEFAULT_FROM
               value: "totodebopro@gmail.com"
+            - name: EMAIL_NOREPLY
+              value: "totodebopro@gmail.com"
             - name: EMAIL_HOST
               value: "smtp.gmail.com"
             - name: EMAIL_PORT
