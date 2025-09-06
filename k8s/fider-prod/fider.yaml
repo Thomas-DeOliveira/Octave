@@ -12,7 +12,7 @@ metadata:
   annotations:
     azure.workload.identity/client-id: "9b138bb9-7f52-4a0b-bef0-7786d4f9ef6b"
   labels:
-    azure.workload.identity/use: "true"
+    azure.workload.identity/use: "true"   # <-- important
 ---
 # 🔑 SecretProviderClass dans le même namespace, avec création du Secret K8s
 apiVersion: secrets-store.csi.x-k8s.io/v1
@@ -29,9 +29,6 @@ spec:
     objects: |
       array:
         - |
-          objectName: fider-database-url
-          objectType: secret
-        - |
           objectName: fider-jwt-secret
           objectType: secret
         - |
@@ -44,8 +41,6 @@ spec:
     - secretName: fider-secrets
       type: Opaque
       data:
-        - key: DATABASE_URL
-          objectName: fider-database-url
         - key: JWT_SECRET
           objectName: fider-jwt-secret
         - key: EMAIL_SMTP_USERNAME
@@ -85,14 +80,24 @@ spec:
               mountPath: /mnt/secrets-store
               readOnly: true
           env:
-            - name: DATABASE_URL
-              valueFrom: { secretKeyRef: { name: fider-secrets, key: DATABASE_URL } }
             - name: JWT_SECRET
               valueFrom: { secretKeyRef: { name: fider-secrets, key: JWT_SECRET } }
             - name: EMAIL_SMTP_USERNAME
               valueFrom: { secretKeyRef: { name: fider-secrets, key: EMAIL_SMTP_USERNAME } }
             - name: EMAIL_SMTP_PASSWORD
               valueFrom: { secretKeyRef: { name: fider-secrets, key: EMAIL_SMTP_PASSWORD } }
+            - name: DATABASE_URL
+              value: "database.azure.io"
+            - name: BASE_URL
+              value: "https://feedback.keyos.fr"
+            - name: EMAIL_NOREPLY
+              value: "noreply@keyos.fr"
+            - name: EMAIL_SMTP_HOST
+              value: "smtp.mondomaine.com"
+            - name: EMAIL_SMTP_PORT
+              value: "587"
+            - name: EMAIL_SMTP_ENABLE_STARTTLS
+              value: "true"
           ports:
             - containerPort: 3000
           readinessProbe:
