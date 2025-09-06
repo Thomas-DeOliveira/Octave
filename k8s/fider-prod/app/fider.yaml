@@ -73,8 +73,7 @@ spec:
               secretProviderClass: "azure-kv-fider"
       containers:
         - name: fider
-          image: getfider/fider:stable
-          # ⬇️ monte le volume CSI pour déclencher la sync KV → Secret
+          image: getfider/fider:latest
           volumeMounts:
             - name: kv
               mountPath: /mnt/secrets-store
