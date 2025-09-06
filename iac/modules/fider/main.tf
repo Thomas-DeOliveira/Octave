@@ -27,7 +27,7 @@ resource "azuread_application_federated_identity_credential" "fider_fic" {
   application_id = azuread_application.fider_app.id
   display_name   = "fider-federated-credential"
   issuer         = data.azurerm_kubernetes_cluster.aks.oidc_issuer_url
-  subject        = "system:serviceaccount:fider:fider-sa"
+  subject        = "system:serviceaccount:fider-prod:fider-sa"
   audiences      = ["api://AzureADTokenExchange"]
 }
 
