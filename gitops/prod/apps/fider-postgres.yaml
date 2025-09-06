@@ -1,17 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: fider
+  name: fider-postgres
   namespace: argocd
 spec:
   project: default
+  source:
+    repoURL: https://github.com/Thomas-DeOliveira/Octave.git
+    targetRevision: main
+    path: k8s/fider-prod/postgres
   destination:
     server: https://kubernetes.default.svc
     namespace: fider-prod
-  source:
-    repoURL: https://github.com/Thomas-DeOliveira/Octave.git   # CHANGE_ME
-    targetRevision: main
-    path: k8s/fider-prod/app
   syncPolicy:
     automated:
       prune: true
@@ -19,3 +19,6 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true

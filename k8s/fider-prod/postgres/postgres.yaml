@@ -1,0 +1,105 @@
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: azure-kv-database
+  namespace: fider-prod
+spec:
+  provider: azure
+  parameters:
+    tenantId: "c87cdf06-bc04-4c92-9a1e-7e1cab14c979"
+    keyvaultName: "keyvault-fider"
+    clientID: "9b138bb9-7f52-4a0b-bef0-7786d4f9ef6b"
+    objects: |
+      array:
+        - |
+          objectName: postgres-user
+          objectType: secret
+        - |
+          objectName: postgres-password
+          objectType: secret
+  secretObjects:
+    - secretName: postgres-secrets
+      type: Opaque
+      data:
+        - key: POSTGRES_USER
+          objectName: postgres-user
+        - key: POSTGRES_PASSWORD
+          objectName: postgres-password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: fider-prod
+spec:
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: fider-prod
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:16
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name : POSTGRES_DB
+              value: fiderdb
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: postgres-secrets, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-secrets, key: POSTGRES_PASSWORD } }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: kv
+              mountPath: /mnt/secrets-store
+              readOnly: true
+          readinessProbe:
+            exec:
+              command: ["sh","-c","pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
