@@ -122,3 +122,30 @@ spec:
       port: 80
       targetPort: 3000
   type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fider
+  namespace: fider-prod
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"   # optionnel (uploads)
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - feedback.keyos.fr
+      secretName: fider-tls
+  rules:
+    - host: feedback.keyos.fr
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: fider-app
+                port:
+                  number: 80
