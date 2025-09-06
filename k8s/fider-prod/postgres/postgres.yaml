@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: postgres-sa
+  name: fider-sa
   namespace: fider-prod
   annotations:
     azure.workload.identity/client-id: "9b138bb9-7f52-4a0b-bef0-7786d4f9ef6b"
