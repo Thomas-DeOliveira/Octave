@@ -87,7 +87,7 @@ spec:
             - name: EMAIL_SMTP_PASSWORD
               valueFrom: { secretKeyRef: { name: fider-secrets, key: EMAIL_SMTP_PASSWORD } }
             - name: DATABASE_URL
-              value: "database.azure.io"
+              value: "postgres://OctavePostgresUser1234:AFBBdjfjhghfh1277432!@postgres:5432/fiderdb?sslmode=disable"
             - name: BASE_URL
               value: "https://feedback.keyos.fr"
             - name: EMAIL_NOREPLY
