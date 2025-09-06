@@ -98,7 +98,7 @@ spec:
                   key: POSTGRES_PASSWORD
           volumeMounts:
             - name: data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql/data/pgdata
             - name: kv
               mountPath: /mnt/secrets-store
               readOnly: true
