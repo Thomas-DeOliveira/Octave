@@ -101,7 +101,7 @@ spec:
           ports:
             - containerPort: 3000
           readinessProbe:
-            httpGet: { path: /health, port: 3000 }
+            httpGet: { path: /, port: 3000 }
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
