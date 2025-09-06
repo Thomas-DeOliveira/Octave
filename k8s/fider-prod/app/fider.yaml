@@ -73,7 +73,7 @@ spec:
               secretProviderClass: "azure-kv-fider"
       containers:
         - name: fider
-          image: getfider/fider:latest
+          image: getfider/fider:stable
           volumeMounts:
             - name: kv
               mountPath: /mnt/secrets-store
