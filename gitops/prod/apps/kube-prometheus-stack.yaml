@@ -1,0 +1,49 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 62.0.0
+    helm:
+      values: |
+        grafana:
+          enabled: true
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt
+            hosts: ["grafana.keyos.fr"]
+            tls:
+              - hosts: ["grafana.keyos.fr"]
+                secretName: grafana-tls
+
+        # Découverte de TOUTES les *Monitor/*Probe dans tous namespaces
+        prometheus:
+          prometheusSpec:
+            serviceMonitorSelector: {}
+            serviceMonitorNamespaceSelector: {}
+            podMonitorSelector: {}
+            podMonitorNamespaceSelector: {}
+            probeSelector: {}
+            probeNamespaceSelector: {}
+            retention: 15d
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
