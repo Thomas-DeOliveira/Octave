@@ -37,6 +37,9 @@ spec:
         - |
           objectName: fider-smtp-password
           objectType: secret
+        - |
+          objectName: database-url
+          objectType: secret
   secretObjects:
     - secretName: fider-secrets
       type: Opaque
@@ -47,6 +50,8 @@ spec:
           objectName: fider-smtp-username
         - key: EMAIL_SMTP_PASSWORD
           objectName: fider-smtp-password
+        - key: DATABASE_URL
+          objectName: database-url
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -86,7 +91,7 @@ spec:
             - name: EMAIL_SMTP_PASSWORD
               valueFrom: { secretKeyRef: { name: fider-secrets, key: EMAIL_SMTP_PASSWORD } }
             - name: DATABASE_URL
-              value: "postgres://OctavePostgresUser1234:AFBBdjfjhghfh1277432!@postgres:5432/fiderdb?sslmode=disable"
+              valueFrom: { secretKeyRef: { name: fider-secrets, key: DATABASE_URL } }
             - name: BASE_URL
               value: "https://feedback.keyos.fr"
             - name: EMAIL_NOREPLY
