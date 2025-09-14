@@ -198,32 +198,45 @@ spec:
                   set -euo pipefail
 
                   # Paquets utiles (si wget/tar/ca-certs manquent)
-                  apt-get update -y
-                  apt-get install -y --no-install-recommends ca-certificates wget tar
-                  update-ca-certificates
+                    export DEBIAN_FRONTEND=noninteractive
+                    apt-get update -y
+                    apt-get install -y --no-install-recommends ca-certificates wget tar
+                    update-ca-certificates
 
-                  TS="$(date -u +%F-%H%M%S)"
-                  DUMP="/tmp/${DB_NAME}-${TS}.dump"
+                    TS="$(date -u +%F-%H%M%S)"
+                    DUMP="/tmp/${DB_NAME}-${TS}.dump"
 
-                  echo "[1/4] pg_dump..."
-                  pg_dump -h "${DB_HOST}" -U "${POSTGRES_USER}" -d "${DB_NAME}" -Fc -f "${DUMP}"
+                    echo "[1/4] pg_dump..."
+                    pg_dump -h "${DB_HOST}" -U "${POSTGRES_USER}" -d "${DB_NAME}" -Fc -f "${DUMP}"
 
-                  echo "[2/4] Téléchargement AzCopy..."
-                  TMPDIR="$(mktemp -d)"
-                  cd "${TMPDIR}"
-                  wget -q https://aka.ms/downloadazcopy-v10-linux -O azcopy.tgz
-                  tar -xzf azcopy.tgz
-                  AZDIR="$(find . -maxdepth 1 -type d -name 'azcopy_linux_amd64_*' | head -n 1)"
-                  AZ="${AZDIR}/azcopy"
-                  chmod +x "$AZ"
+                    echo "[2/4] Téléchargement AzCopy..."
+                    TMPDIR="$(mktemp -d)"
+                    cd "${TMPDIR}"
+                    wget -q https://aka.ms/downloadazcopy-v10-linux -O azcopy.tgz
+                    tar -xzf azcopy.tgz
+                    AZDIR="$(find . -maxdepth 1 -type d -name 'azcopy_linux_amd64_*' | head -n 1)"
+                    AZ="${AZDIR}/azcopy"
+                    chmod +x "$AZ"
 
-                  echo "[3/4] Upload vers Blob (SAS)..."
-                  YEAR="$(date -u +%Y)"; MONTH="$(date -u +%m)"
-                  DEST="${AZURE_BLOB_CONTAINER_SAS_URL}/pg/${DB_NAME}/${YEAR}/${MONTH}/${DB_NAME}-${TS}.dump"
+                    echo "[3/4] Upload vers Blob (SAS)..."
+                    # Guard & diagnostic
+                    if [ -z "${AZURE_BLOB_CONTAINER_SAS_URL:-}" ]; then
+                  echo "ERROR: AZURE_BLOB_CONTAINER_SAS_URL manquant (URL du conteneur AVEC ?sv=...)."
+                    exit 1
+                    fi
 
-                  "$AZ" copy "${DUMP}" "${DEST}" --from-to=LocalBlob --check-length=true
+                    # Séparer base et query du SAS déjà présent dans la variable
+                    BASE="${AZURE_BLOB_CONTAINER_SAS_URL%%\?*}"  # https://<account>.blob.core.windows.net/<container>
+                    SAS="${AZURE_BLOB_CONTAINER_SAS_URL#*\?}"    # sv=...&sp=...&se=...&sig=...
 
-                  echo "[4/4] Nettoyage."
-                  rm -f "${DUMP}"
-                  rm -rf "${TMPDIR}"
-                  echo "Backup OK -> ${DEST}"
+                    YEAR="$(date -u +%Y)"; MONTH="$(date -u +%m)"
+                    DEST="${BASE}/pg/${DB_NAME}/${YEAR}/${MONTH}/${DB_NAME}-${TS}.dump?${SAS}"
+
+                  echo "Destination: ${BASE}/pg/... ?<SAS_MASKED>"
+
+                    "$AZ" copy "${DUMP}" "${DEST}" --from-to=LocalBlob --check-length=true
+
+                    echo "[4/4] Nettoyage."
+                    rm -f "${DUMP}"
+                    rm -rf "${TMPDIR}"
+                    echo "Backup OK -> ${DEST}"
