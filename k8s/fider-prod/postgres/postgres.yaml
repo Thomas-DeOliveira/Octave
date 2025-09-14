@@ -28,6 +28,9 @@ spec:
         - |
           objectName: postgres-password
           objectType: secret
+        - |
+          objectName: blob-sas-url
+          objectType: secret
   secretObjects:
     - secretName: postgres-secrets
       type: Opaque
@@ -36,6 +39,11 @@ spec:
           objectName: postgres-user
         - key: POSTGRES_PASSWORD
           objectName: postgres-password
+    - secretName: blob-sas-secret
+      type: Opaque
+      data:
+        - key: AZURE_BLOB_CONTAINER_SAS_URL
+          objectName: blob-sas-url
 ---
 apiVersion: v1
 kind: Service
@@ -138,3 +146,76 @@ spec:
         resources:
           requests:
             storage: 5Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pg-backup-to-blob
+  namespace: fider-prod
+spec:
+  schedule: "15 12 * * *"  # 00:00 UTC ~ 02:00 Paris (heure d'été)
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: postgres-sa
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: postgres:16-alpine
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: DB_HOST
+                  value: "postgres.fider-prod.svc.cluster.local"
+                - name: DB_NAME
+                  value: "fiderdb"
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secrets
+                      key: POSTGRES_PASSWORD
+              envFrom:
+                - secretRef:
+                    name: postgres-secrets
+                - secretRef:
+                    name: blob-sas-secret
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+              command: ["/bin/sh","-c"]
+              args:
+                - |
+                  set -euo pipefail
+
+                  TS="$(date -u +%F-%H%M%S)"
+                  DUMP="/tmp/${DB_NAME}-${TS}.dump"
+
+                  echo "[1/4] pg_dump..."
+                  pg_dump -h "${DB_HOST}" -U "${POSTGRES_USER}" -d "${DB_NAME}" -Fc -f "${DUMP}"
+
+                  echo "[2/4] Téléchargement AzCopy..."
+                  TMPDIR="$(mktemp -d)"
+                  cd "${TMPDIR}"
+                  wget -q https://aka.ms/downloadazcopy-v10-linux -O azcopy.tgz
+                  tar -xzf azcopy.tgz
+                  AZDIR="$(find . -maxdepth 1 -type d -name 'azcopy_linux_amd64_*' | head -n 1)"
+                  AZ="${AZDIR}/azcopy"
+
+                  echo "[3/4] Upload vers Blob (SAS)..."
+                  YEAR="$(date -u +%Y)"; MONTH="$(date -u +%m)"
+                  DEST="${AZURE_BLOB_CONTAINER_SAS_URL}/pg/${DB_NAME}/${YEAR}/${MONTH}/${DB_NAME}-${TS}.dump"
+
+                  "$AZ" copy "${DUMP}" "${DEST}" --from-to=LocalBlob --check-length=true
+
+                  echo "[4/4] Nettoyage."
+                  rm -f "${DUMP}"
+                  rm -rf "${TMPDIR}"
+                  echo "Backup OK -> ${DEST}"
